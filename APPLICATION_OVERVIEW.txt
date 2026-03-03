@@ -1,0 +1,306 @@
+================================================================================
+   KIDNEY TRANSPLANT LOGISTICS & PERISHABLE QUEUEING SIMULATION
+   Application Overview — Objectives, Scope, Limitations & Slide Summary
+================================================================================
+   Arena-Style Discrete-Event Simulation (Python / SimPy / Tkinter GUI)
+   Generated: March 3, 2026
+================================================================================
+
+
+1. PROBLEM STATEMENT
+================================================================================
+
+Every year, thousands of transplantable kidneys are discarded in the United
+States — not because recipients do not exist, but because the logistics of
+matching, testing, transporting, and scheduling surgery cannot keep pace with
+the narrow biological window in which a kidney remains viable.
+
+  THE SCALE OF THE CRISIS
+  ─────────────────────────────────────────────────────────────────────────────
+  As of 2023, the nonuse (discard) rate for deceased donor kidneys in the U.S.
+  reached 27.9% — up from 26.6% in 2022 and from roughly 18–20% just a decade
+  ago (Lentine et al., 2025). Each year, approximately 3,500 to 3,800 donated
+  kidneys are discarded (McKenney et al., 2024; Mohan et al., 2018), while
+  more than 100,000 patients remain on the national transplant waitlist.
+
+  THE ROOT CAUSES
+  ─────────────────────────────────────────────────────────────────────────────
+  Research shows that discard reasons extend well beyond simple organ quality:
+
+    • No Recipient Located in Time  — Allocation and matching delays account
+      for up to 60% of discard reasons in some analyses (McKenney et al., 2024).
+      When a compatible recipient cannot be identified and prepared before cold
+      ischemia time expires, a viable organ is wasted.
+
+    • Cold Ischemia Time Accumulation  — The longer a kidney remains on ice,
+      the greater the risk of functional decline and discard. Each hour spent
+      in matching queues, awaiting lab results, or waiting for a transport
+      vehicle or operating room compounds this risk (Friedewald et al., 2023).
+
+    • Biopsy and Clinical Findings  — The most frequently recorded clinical
+      reason for discard, accounting for ~38.2% of cases (Mohan et al., 2018).
+      While some of these are unavoidable, the compounding effect of logistics
+      delays increases the likelihood that borderline organs are ultimately
+      rejected.
+
+    • Donor Characteristics and High-Risk Organs  — Kidneys from older,
+      obese, diabetic, or hypertensive donors have significantly higher discard
+      odds. For organs with a Kidney Donor Profile Index (KDPI) >= 85%,
+      non-utilization rates exceed 50–60% (Friedewald et al., 2023;
+      Lentine et al., 2025).
+
+  THE OPPORTUNITY FOR SIMULATION
+  ─────────────────────────────────────────────────────────────────────────────
+  Because a substantial share of discards is attributable to logistical and
+  allocation inefficiencies — not irreversible organ failure — there is a
+  meaningful opportunity to reduce waste through better resource planning
+  and process design. However, the transplant pipeline is a complex stochastic
+  system: arrival rates are random, matching is probabilistic, resources are
+  shared and finite, and the cost of failure is a human life.
+
+  This is precisely the class of problem that discrete-event simulation is
+  designed to address.
+
+  This application models the full kidney transplant logistics chain as a
+  SimPy-based Arena-equivalent DES, enabling researchers and planners to:
+
+    1. Quantify how resource bottlenecks (labs, transport, ORs) translate
+       directly into cold ischemia time accumulation and organ expiry.
+    2. Test the sensitivity of organ waste and waitlist mortality to changes
+       in resource capacity, arrival rates, and matching thresholds.
+    3. Identify which stages of the pipeline — allocation, testing, transport,
+       or surgery — are the primary drivers of preventable discard.
+    4. Produce statistically rigorous outputs (confidence intervals across
+       10 replications) to support evidence-based policy recommendations.
+
+  REFERENCES
+  ─────────────────────────────────────────────────────────────────────────────
+  Friedewald, J. J., et al. (2023). Kidney donor profile index and discard
+    rates for high-KDPI organs. American Journal of Transplantation.
+
+  Lentine, K. L., et al. (2025). OPTN/SRTR 2023 Annual Data Report: Kidney.
+    American Journal of Transplantation, 25(S1).
+
+  McKenney, A. S., et al. (2024). Trends and reasons for deceased donor kidney
+    discard in the United States. Clinical Journal of the American Society of
+    Nephrology.
+
+  Mohan, S., et al. (2018). Factors leading to the discard of deceased donor
+    kidneys in the United States. Kidney International, 94(1), 187–197.
+
+
+2. OBJECTIVES OF THE APPLICATION
+================================================================================
+
+The application is an Arena-style Discrete-Event Simulation (DES) of a kidney
+transplant supply chain, built in Python using SimPy and wrapped in a Tkinter
+GUI that mimics the look and feel of Rockwell Arena Simulation Software.
+
+Core objectives:
+
+  a) MODEL ORGAN PERISHABILITY
+     Every kidney has a hard 36-hour cold ischemia deadline. Quality decays
+     continuously using Q(t) = e^(-0.05*t). The simulation measures how many
+     organs expire before ever reaching a recipient.
+
+  b) REPLICATE UNOS-STYLE ORGAN ALLOCATION
+     Organs are matched to the highest-priority compatible patient using ABO
+     blood-type compatibility, 6-antigen HLA scoring, PRA (Panel Reactive
+     Antibody) screening, and a composite urgency/wait-time score.
+
+  c) MODEL RESOURCE CONTENTION
+     Four shared resources (Operating Rooms, Surgical Teams, Transport
+     Vehicles, Crossmatch Labs) create realistic bottlenecks and queues.
+
+  d) QUANTIFY WAITLIST OUTCOMES
+     Track how many patients are transplanted, die waiting, or are transferred
+     — providing a systemic view of supply/demand imbalance.
+
+  e) ENABLE "WHAT-IF" EXPERIMENTATION
+     The Run Setup dialog lets you adjust resource capacities, arrival rates,
+     and perishability parameters so stakeholders can test policy changes
+     (e.g., "What happens if we add a 4th transport vehicle?").
+
+  f) PROVIDE STATISTICAL RIGOR
+     10 independent replications with different random seeds generate
+     confidence intervals on all output metrics, equivalent to Arena's
+     replication analysis.
+
+  g) SERVE AS AN ACADEMIC ARENA EQUIVALENT
+     The entire model is structured around Arena's module types (Create,
+     Assign, Decide, Process, Hold, Dispose) so it can be used to teach or
+     demonstrate DES concepts.
+
+
+3. SCOPE — LINKED TO THE GUI
+================================================================================
+
+  ┌──────────────────────────────────────────┬─────────────────────────────────────┐
+  │ Capability                               │ Where it lives in the GUI           │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ 1-year simulation horizon (8,760 hrs)    │ Toolbar → Duration spinbox;         │
+  │   with a 30-day warm-up                  │ Run Setup → Simulation Time &       │
+  │                                          │ Warm-Up fields                      │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ 3 entity types: Deceased donor kidneys,  │ Flowchart tab — three coloured      │
+  │   Living donor kidneys, Waitlisted       │ paths drawn on the canvas           │
+  │   patients                               │                                     │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ UNOS-style matching                      │ Flowchart tab — "DECIDE Match?"     │
+  │   (ABO + HLA + PRA + priority score)     │ diamond; Live Stats sidebar —       │
+  │                                          │ "No Compatible Match" counter       │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ 4 resources with queuing                 │ Setup dialog → Resources section;   │
+  │   (OR, Teams, Transport, Labs)           │ Live Stats sidebar → Resource       │
+  │                                          │ Utilization; Plots tab → bar chart  │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ Perishability enforcement at 3           │ Live Stats sidebar — "Organs        │
+  │   checkpoints (post-transport,           │ Expired" counter; Plots tab →       │
+  │   post-prep, hourly pool scan)           │ Cold Ischemia Distribution          │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ 10 replications + confidence intervals   │ Toolbar → Replications spinbox;     │
+  │                                          │ Reports tab → across_replications   │
+  │                                          │ report with CI columns              │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ Patient attrition (death & transfer)     │ Live Stats sidebar — "Died on       │
+  │                                          │ Waitlist" / "Transferred Out"       │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ Living donor fast-track                  │ Flowchart canvas — Path C           │
+  │   (bypasses matching queue)              │ (right side of flowchart)           │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ Arena-style tabular reports saved        │ Reports tab (scrollable text area); │
+  │   to /output/                            │ File → Open Output Folder           │
+  ├──────────────────────────────────────────┼─────────────────────────────────────┤
+  │ Matplotlib plots (dashboard, queue       │ Plots tab; View → Dashboard         │
+  │   time-series, utilization, outcomes)    │                                     │
+  └──────────────────────────────────────────┴─────────────────────────────────────┘
+
+
+4. LIMITATIONS — LINKED TO THE GUI
+================================================================================
+
+  a) SINGLE TRANSPLANT CENTER
+     The model simulates one facility only, not a regional/national UNOS
+     network. No inter-center organ sharing or geographic routing beyond
+     abstract Local/Regional/National transport zones.
+     → GUI: Setup dialog — transport zone is stochastic, not a real map.
+
+  b) NO PEDIATRIC VS. ADULT SEGMENTATION
+     Patients are Uniform(18–75) age with no age-based priority or pediatric
+     allocation rules. Misses UNOS pediatric priority rules.
+     → GUI: No age filter in the Run Setup.
+
+  c) SIMPLIFIED PRA MODEL
+     PRA affects crossmatch failure probability probabilistically, not via
+     actual antibody-antigen specificity. Over-simplifies highly sensitized
+     patient outcomes.
+     → GUI: Reports tab — crossmatch failure rate is aggregated, not
+       patient-specific.
+
+  d) FIXED RESOURCE CAPACITIES DURING A RUN
+     ORs, teams, vehicles, and labs cannot be changed mid-simulation. Cannot
+     model shift schedules, overtime, or resource breakdowns.
+     → GUI: Setup dialog parameters are locked once Run is pressed.
+
+  e) NO ORGAN RE-OFFERING LOGIC
+     If a crossmatch fails or transport expires, the organ is disposed — not
+     re-offered to the next compatible patient. Overestimates organ waste
+     compared to real UNOS where organs are re-listed.
+     → GUI: "No Compatible Match" and "Organs Expired" counters will read
+       higher than reality.
+
+  f) HOMOGENEOUS PATIENT POPULATION
+     No diabetes, hypertension, or comorbidity modeling. Success probabilities
+     don't account for recipient health status beyond HLA/PRA.
+     → GUI: Transplant success formula is HLA + CIT only (no comorbidity
+       input field in Setup).
+
+  g) NO FINANCIAL / COST MODELING
+     No cost per OR-hour, transport cost, or insurance variables. Cannot
+     perform cost-effectiveness or health-economics analysis.
+     → GUI: No cost output anywhere in Reports or Plots tabs.
+
+  h) WARM-UP PERIOD EDGE CASE
+     Warm-up is fixed at 30 days. If Duration is set very short (e.g., 7
+     days) via the toolbar spinbox, the warm-up consumes the entire run and
+     statistics will be empty or misleading.
+     → GUI: Status bar clock — run ends with no post-warmup data collected.
+
+  i) DISPLAY-ONLY PAUSE
+     The Pause button stops the GUI update thread, not the underlying SimPy
+     engine. Pausing doesn't freeze simulation time; it just delays screen
+     refresh.
+     → GUI: Toolbar — Pause button is a display-only hold.
+
+  j) DETERMINISTIC QUALITY DECAY
+     Q(t) = e^(-0.05*t) is the same for all organ types. No distinction
+     between kidneys from older vs. younger donors. Understates real
+     variability in organ quality.
+     → GUI: Plots tab → Cold Ischemia / Quality chart shows a single curve.
+
+
+5. PRESENTATION SLIDE SUMMARY
+================================================================================
+
+  ── SLIDE 1 — PROJECT TITLE ──────────────────────────────────────────────────
+  Kidney Transplant Logistics & Perishable Queueing Simulation
+  Arena-Style Discrete-Event Simulation | Python + SimPy | 2025
+
+  ── SLIDE 2 — PROBLEM STATEMENT ──────────────────────────────────────────────
+  • 100,000+ patients are on the US kidney transplant waitlist at any time
+  • As of 2023, 27.9% of all recovered deceased donor kidneys were discarded
+    — up from 26.6% in 2022 and from ~18-20% just a decade ago
+    (Lentine et al., 2025)
+  • ~3,500–3,800 donated kidneys are discarded annually in the U.S.
+    (McKenney et al., 2024; Mohan et al., 2018)
+  • Top discard reasons: No recipient located in time (up to 60% of cases),
+    biopsy findings (38.2%), prolonged cold ischemia, and donor characteristics
+    — many of which are addressable through better logistics (McKenney et al.,
+    2024; Mohan et al., 2018)
+  • Goal: Simulate the end-to-end transplant pipeline to identify where
+    allocation friction and resource bottlenecks drive preventable organ waste
+    and patient deaths
+
+  ── SLIDE 3 — SYSTEM OVERVIEW ────────────────────────────────────────────────
+  • Two entity types: Donor kidneys (~3/day) and Waitlist patients (~6/day)
+  • Three process stages: Crossmatch Lab → Transport → Surgery
+  • Four shared resources: 2 Labs, 3 Transport Vehicles, 4 ORs, 5 Teams
+  • Allocation logic: UNOS-style ABO + HLA + PRA + priority score matching
+  • Simulation horizon: 1 year | 10 replications | 30-day warm-up
+
+  ── SLIDE 4 — KEY MODEL FEATURES ─────────────────────────────────────────────
+  Feature              | Detail
+  ---------------------|----------------------------------------------------
+  Perishability        | Cold ischemia clock, Q(t) = e^(-0.05*t) decay
+  UNOS Allocation      | Blood type + HLA + PRA + urgency/wait-time score
+  Attrition            | Patients die (0.0001/hr) or transfer (0.00005/hr)
+  Living Donors        | Bypass matching; go directly to crossmatch & OR
+  Statistics           | Tally, Time-Persistent, Counter — 95% CIs across
+                       | replications
+
+  ── SLIDE 5 — GUI WALKTHROUGH ────────────────────────────────────────────────
+  • Toolbar           — Run, Reset, Setup; set Replications, Duration, Seed
+  • Flowchart Canvas  — Visual Arena-style process map (3 entity paths)
+  • Live Stats Sidebar — Real-time counters and resource utilization
+  • Reports Tab       — Arena-style tabular output with confidence intervals
+  • Plots Tab         — Dashboard, queue time-series, utilization, outcomes
+
+  ── SLIDE 6 — KEY LIMITATIONS ────────────────────────────────────────────────
+  • Single-center model (no UNOS network)
+  • No organ re-offering after crossmatch failure
+  • No comorbidity / recipient health modeling
+  • Resource capacities fixed for duration of run
+  • No financial / cost analysis
+
+  ── SLIDE 7 — WHAT CAN BE TESTED ─────────────────────────────────────────────
+  • Add a 4th transport vehicle    → Does organ waste drop?
+  • Increase arrival rate          → Does the waitlist grow unbounded?
+  • Reduce cold ischemia limit     → How sensitive is the system to tighter
+                                     viability windows?
+  • Double OR capacity             → Does surgery become the bottleneck or
+                                     does transport?
+
+
+================================================================================
+                          END OF APPLICATION OVERVIEW
+================================================================================
