@@ -4,13 +4,13 @@
 ==============================================================================
   Metric                                    Mean     StdDev                 95% CI
   -------------------------------------------------------------------------------
-  Organ Utilization Rate                   72.12       0.78         [71.64, 72.61]
+  Organ Utilization Rate                   72.16       0.71         [71.72, 72.60]
   Organ Waste Rate                          0.02       0.05          [-0.02, 0.05]
-  Avg Wait Time Days                       76.46       5.34         [73.15, 79.77]
+  Avg Wait Time Days                       76.72       5.29         [73.44, 80.00]
   Avg Cold Ischemia                        10.04       0.08          [9.99, 10.09]
   Avg Quality At Transplant                 0.61       0.00           [0.61, 0.61]
-  Total Transplants                       843.00      35.44       [821.03, 864.97]
+  Total Transplants                       850.20      36.87       [827.35, 873.05]
   Total Expired                             0.20       0.63          [-0.19, 0.59]
-  Avg Waitlist Length                     428.79      25.00       [413.29, 444.28]
-  Avg Or Utilization                        0.12       0.00           [0.11, 0.12]
+  Avg Waitlist Length                     431.03      25.06       [415.50, 446.57]
+  Avg Or Utilization                        0.12       0.01           [0.11, 0.12]
 ==============================================================================

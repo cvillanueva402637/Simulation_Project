@@ -2,22 +2,22 @@
   ARENA-STYLE SIMULATION OUTPUT REPORT
   Kidney Transplant Logistics & Perishable Queueing Simulation
 ==============================================================================
-  Simulation Duration: 8760.0 hours (365.0 days)
+  Simulation Duration: 8832.0 hours (368.0 days)
 
 ──────────────────────────────────────────────────────────────────────────────
   COUNTER STATISTICS
 ──────────────────────────────────────────────────────────────────────────────
-  Total Kidneys Arrived                             1158
-  Total Patients Arrived                            2202
-  Successful Transplants                             839
-  Failed Transplants (Rejection)                     135
+  Total Kidneys Arrived                             1170
+  Total Patients Arrived                            2228
+  Successful Transplants                             851
+  Failed Transplants (Rejection)                     138
   Organs Expired (Ischemia)                            0
-  Organs — No Compatible Match                       180
-  Patients Died on Waitlist                          390
-  Patients Transferred Out                           189
-  Living Donor Transplants                           184
+  Organs — No Compatible Match                       181
+  Patients Died on Waitlist                          391
+  Patients Transferred Out                           194
+  Living Donor Transplants                           190
 
-  Organ Utilization Rate (%)                        72.5%
+  Organ Utilization Rate (%)                        72.7%
   Organ Waste Rate (%)                               0.0%
   No-Match Rate (%)                                 15.5%
 
@@ -26,28 +26,28 @@
 ──────────────────────────────────────────────────────────────────────────────
   Statistic                            Count     Mean   StdDev      Min      Max              95%CI
   -----------------------------------------------------------------------------------------------
-  Organ Cold Ischemia Time (hrs)         974    10.05     2.05     5.29    16.22      [9.92, 10.18]
-  Organ Quality at Transplant            974     0.61     0.06     0.44     0.77       [0.60, 0.61]
-  Patient Wait Time (hrs)                839  1906.92  1317.79     0.00  4620.98 [1817.75, 1996.09]
-  Patient Wait Time (days)               839    79.45    54.91     0.00   192.54     [75.74, 83.17]
-  Surgery Duration (hrs)                 974     3.87     0.84     2.07     5.87       [3.81, 3.92]
-  Transport Time (hrs)                   975     2.65     1.75     0.53     7.44       [2.54, 2.76]
-  Crossmatch Test Time (hrs)            1156     2.32     0.62     1.03     3.86       [2.29, 2.36]
-  Organ Total Time in System (hrs)       839     9.98     2.01     5.29    16.22      [9.85, 10.12]
-  HLA Match Score (0-6)                  839     0.90     0.78     0.00     4.00       [0.85, 0.95]
-  Patient Priority Score at Match        839    66.24    24.35    29.90   109.46     [64.59, 67.89]
+  Organ Cold Ischemia Time (hrs)         989    10.04     2.05     5.29    16.22      [9.91, 10.16]
+  Organ Quality at Transplant            989     0.61     0.06     0.44     0.77       [0.60, 0.61]
+  Patient Wait Time (hrs)                851  1905.27  1326.01     0.00  4620.98 [1816.18, 1994.37]
+  Patient Wait Time (days)               851    79.39    55.25     0.00   192.54     [75.67, 83.10]
+  Surgery Duration (hrs)                 989     3.86     0.84     2.07     5.87       [3.81, 3.91]
+  Transport Time (hrs)                   989     2.64     1.75     0.53     7.44       [2.53, 2.75]
+  Crossmatch Test Time (hrs)            1170     2.32     0.61     1.03     3.86       [2.29, 2.36]
+  Organ Total Time in System (hrs)       851     9.97     2.02     5.29    16.22      [9.84, 10.11]
+  HLA Match Score (0-6)                  851     0.90     0.78     0.00     4.00       [0.84, 0.95]
+  Patient Priority Score at Match        851    66.28    24.56    29.90   109.46     [64.63, 67.93]
 
 ──────────────────────────────────────────────────────────────────────────────
   TIME-PERSISTENT (TIME-WEIGHTED) STATISTICS
 ──────────────────────────────────────────────────────────────────────────────
   Statistic                             Time-Avg    Current    Maximum
   -------------------------------------------------------------------
-  Waitlist Length                         449.78     709.00     711.00
+  Waitlist Length                         451.93     718.00     720.00
   Available Organ Pool Size                 0.00       0.00       1.00
-  OR Utilization                            0.12       0.25       1.00
-  Transport Utilization                     0.10       0.33       1.00
-  Surgical Team Utilization                 0.09       0.20       1.00
-  Crossmatch Lab Utilization                0.16       1.00       1.00
+  OR Utilization                            0.12       0.00       1.00
+  Transport Utilization                     0.10       0.00       1.00
+  Surgical Team Utilization                 0.09       0.00       1.00
+  Crossmatch Lab Utilization                0.16       0.00       1.00
 
 ==============================================================================
   END OF REPORT
