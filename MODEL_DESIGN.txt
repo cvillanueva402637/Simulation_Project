@@ -1,0 +1,464 @@
+================================================================================
+           MODEL DESIGN — KIDNEY TRANSPLANT LOGISTICS &
+              PERISHABLE QUEUEING SIMULATION
+================================================================================
+           Arena-Style Discrete-Event Simulation (Python / SimPy)
+================================================================================
+
+
+1. OVERVIEW
+================================================================================
+
+The simulation model represents a kidney transplant system where two types of
+entities — donor kidneys and waitlisted patients — flow through a network of
+processes that mirror real-world organ procurement, matching, testing,
+transportation, and surgical transplantation. The distinguishing feature of this
+model is that kidneys are perishable entities subject to a cold ischemia clock
+that begins at harvest and imposes a hard 36-hour viability deadline with
+continuous exponential quality decay.
+
+The model is built using an Arena-equivalent discrete-event simulation
+framework (SimPy) and is structured entirely around Arena's core module types:
+Create, Assign, Decide, Process (Seize-Delay-Release), Hold/Queue, and Dispose.
+
+
+2. ENTITIES
+================================================================================
+
+The model has two entity types, each with a set of Arena-style attributes:
+
+  ENTITY 1 — KidneyOrgan (Perishable)
+  ─────────────────────────────────────
+  An organ entity that enters the system upon donor procurement. Each kidney
+  carries the following attributes:
+    • Entity ID          — Unique serial number
+    • Blood Type         — ABO group (O, A, B, AB), sampled from US population
+                           distribution (O: 44%, A: 42%, B: 10%, AB: 4%)
+    • HLA Profile        — 6-antigen tissue typing (each antigen randomly 1–20)
+    • Donor Type         — "Deceased" or "Living"
+    • Harvest Time       — Simulation clock time when the organ was procured
+    • Quality Score      — Starts at 1.0 and decays via Q(t) = e^(-0.05·t)
+    • Max Viable Time    — 36 hours (cold ischemia limit)
+    • Transport Zone     — Local, Regional, or National
+    • Status             — Tracks position in flowchart (Harvested, In Pool,
+                           Matched, Crossmatch Testing, In Transport, In Surgery,
+                           Transplanted, Expired, Rejected)
+
+  ENTITY 2 — Patient (Waitlisted)
+  ─────────────────────────────────────
+  A patient entity that enters the transplant waitlist. Attributes include:
+    • Entity ID          — Unique serial number
+    • Blood Type         — ABO group (same distribution as kidneys)
+    • HLA Profile        — 6-antigen tissue typing
+    • Urgency Level      — UNOS-style: Critical (10%), High (25%),
+                           Medium (40%), Low (25%)
+    • Time on Waitlist   — Clock time when patient joined the list
+    • Age                — Uniformly sampled between 18–75 years
+    • PRA                — Panel Reactive Antibody percentage (0–100%);
+                           higher values indicate sensitized patients who are
+                           harder to match
+    • Priority Score     — Composite: (Urgency Weight × 10) + (Wait Days × 0.5)
+                           + (PRA/100 × 5)
+    • Status             — Waiting, Matched, Transplanted, Died Waiting,
+                           Transferred
+
+
+3. MODULES USED
+================================================================================
+
+The simulation model is designed using the following Arena-equivalent modules:
+
+
+  MODULE 1 — CREATE: Deceased Donor Kidney Arrivals
+  ──────────────────────────────────────────────────
+  Generates kidney organ entities representing deceased-donor procurement events.
+  Inter-arrival times follow an Exponential distribution with a rate of 1/8 per
+  hour (approximately 3 kidneys per day). Upon creation, each kidney entity is
+  assigned randomized blood type, HLA profile, and donor type attributes. The
+  cold ischemia clock starts immediately at creation time.
+
+  MODULE 2 — CREATE: Patient Arrivals to Waitlist
+  ──────────────────────────────────────────────────
+  Generates patient entities who need a kidney transplant. Inter-arrival times
+  follow an Exponential distribution with a rate of 1/4 per hour (approximately
+  6 patients per day). Each patient is assigned a randomized blood type, HLA
+  profile, urgency level, age, and PRA sensitization score. Upon creation,
+  the patient entity enters the waitlist queue and also triggers a check of
+  the organ pool to see if any currently available kidney is compatible.
+
+  MODULE 3 — CREATE: Living Donor Kidney Arrivals
+  ──────────────────────────────────────────────────
+  Generates pre-scheduled living donor kidney entities at a lower rate
+  (Exponential, rate 1/48 per hour, approximately 0.5 per day). Living donor
+  kidneys arrive with a guaranteed-compatible recipient, so they bypass the
+  matching queue entirely and proceed directly to crossmatch testing and
+  surgery.
+
+  MODULE 4 — ASSIGN: Kidney Attributes
+  ──────────────────────────────────────────────────
+  Upon creation, each kidney entity is assigned:
+    • Blood type (sampled from ABO distribution)
+    • HLA antigen profile (6 random antigens)
+    • Transport distance zone — Local (40%), Regional (35%), National (25%)
+  The transport zone determines which triangular distribution governs the
+  later transport delay time.
+
+  MODULE 5 — ASSIGN: Patient Attributes
+  ──────────────────────────────────────────────────
+  Upon creation, each patient entity is assigned:
+    • Blood type (sampled from ABO distribution)
+    • HLA antigen profile (6 random antigens)
+    • Urgency level (Critical / High / Medium / Low with defined weights)
+    • Age (Uniform 18–75)
+    • PRA sensitization score (Uniform 0–100%)
+
+  MODULE 6 — DECIDE: Organ-to-Patient Matching (UNOS-Style Allocation)
+  ──────────────────────────────────────────────────
+  This is the core decision logic that determines whether a compatible patient
+  exists for an arriving kidney. The matching algorithm applies three filters
+  in sequence:
+
+    Step 1 — ABO Blood Type Compatibility:
+             The organ's blood type must be compatible with the patient per
+             the standard compatibility matrix (e.g., Type O kidneys can go
+             to O, A, B, or AB recipients; Type AB can only go to AB).
+
+    Step 2 — HLA Antigen Matching:
+             The number of matching HLA antigens (out of 6) is counted.
+             Higher matches are preferred but all levels are accepted.
+
+    Step 3 — Virtual Crossmatch (PRA-based):
+             Patients with PRA > 80% have a probability of failing the
+             virtual crossmatch equal to PRA/200, which may eliminate
+             them from candidacy.
+
+  Among all passing candidates, a composite priority score is computed:
+    Score = (Urgency Weight × 10) + (Wait Time in Days × 0.5) + (HLA Matches × 2)
+  The patient with the highest score is selected.
+
+  If no compatible patient is found, the kidney entity is routed to the
+  Organ Pool (Hold module) to wait. If no match is found before the cold
+  ischemia clock expires, the organ is disposed as expired.
+
+  MODULE 7 — HOLD / QUEUE: Patient Waitlist (Priority Queue)
+  ──────────────────────────────────────────────────
+  Patients who have not yet been matched to a kidney wait in a priority queue.
+  When a new kidney arrives, the Decide module scans this queue for the
+  highest-priority compatible patient. When a new patient arrives, the Decide
+  module also scans the Organ Pool for any available compatible kidney. This
+  two-way matching prevents both organs and patients from waiting unnecessarily.
+
+  MODULE 8 — HOLD / QUEUE: Organ Pool
+  ──────────────────────────────────────────────────
+  Kidneys that have no immediate match upon arrival enter the organ pool.
+  This is a holding area where organs wait while their cold ischemia clock
+  continues to tick. An hourly expiry checker removes any organ whose elapsed
+  time since harvest exceeds 36 hours, routing it to the Dispose (Expired)
+  module. When a new patient joins the waitlist, pooled organs are re-evaluated
+  for potential matches.
+
+  MODULE 9 — PROCESS: Crossmatch Testing (Seize Lab → Delay → Release Lab)
+  ──────────────────────────────────────────────────
+  Once a kidney-patient pair is matched, the kidney entity enters the
+  crossmatch lab process:
+    • Seize:   One of 2 crossmatch laboratory resources
+    • Delay:   Triangular(1.0, 2.0, 4.0) hours — physical crossmatch test
+    • Release: The lab resource is freed
+  If the lab is busy, the entity waits in the crossmatch queue. After testing,
+  a Decide sub-module determines the crossmatch result: the failure probability
+  is 5% baseline plus an additional PRA/500 for sensitized patients. A positive
+  crossmatch (failure) routes the kidney to Dispose.
+
+  MODULE 10 — PROCESS: Organ Transport (Seize Vehicle → Delay → Release Vehicle)
+  ──────────────────────────────────────────────────
+  After passing the crossmatch, the kidney is transported to the surgical center:
+    • Seize:   One of 3 transport vehicle resources (helicopter/van)
+    • Delay:   Depends on the transport zone assigned earlier:
+               - Local:    Triangular(0.5, 1.0, 2.0) hours
+               - Regional: Triangular(1.5, 3.0, 5.0) hours
+               - National: Triangular(3.0, 5.0, 8.0) hours
+    • Release: The transport vehicle is freed
+  After transport, a Decide sub-module checks whether the kidney is still within
+  its 36-hour viability window. If cold ischemia time has been exceeded, the
+  organ is disposed as expired and the patient returns to the waitlist.
+
+  MODULE 11 — PROCESS: Surgery Preparation (Delay Only)
+  ──────────────────────────────────────────────────
+  A simple delay representing pre-operative preparation:
+    • Delay: Triangular(0.5, 1.0, 2.0) hours
+  No resource is seized for this stage. After preparation, a final viability
+  check is performed before proceeding to surgery.
+
+  MODULE 12 — PROCESS: Transplant Surgery (Seize OR + Team → Delay → Release)
+  ──────────────────────────────────────────────────
+  The actual kidney transplant operation:
+    • Seize:   One of 4 Operating Room resources AND one of 5 Surgical Team
+               resources simultaneously (both must be available)
+    • Delay:   Triangular(2.0, 3.5, 6.0) hours — surgery duration
+    • Release: Both the operating room and surgical team are freed
+  If either resource is busy, the entity waits in the surgery queue.
+
+  MODULE 13 — DECIDE: Transplant Outcome (Graft Success vs. Rejection)
+  ──────────────────────────────────────────────────
+  After surgery, the model determines whether the transplant succeeds or fails
+  using a probabilistic outcome model:
+    Success Probability = 0.95 + (0.005 × HLA Matches) - (0.01 × CIT Hours)
+    Bounded to [0.70, 1.00]
+  Factors that improve success: higher HLA match count, lower cold ischemia
+  time. If the transplant succeeds, both the kidney and patient are disposed
+  as a successful transplant. If it fails (graft rejection), the kidney is
+  disposed and the patient returns to the waitlist to await another organ.
+
+  MODULE 14 — DECIDE: Patient Attrition (Background Process)
+  ──────────────────────────────────────────────────
+  A continuous hourly check on all waitlisted patients. Each hour, every active
+  patient faces:
+    • Death probability:    0.0001 per hour (removes patient from system)
+    • Transfer probability: 0.00005 per hour (patient leaves to another center)
+  This models the real-world attrition of patients who die or are transferred
+  while waiting for a transplant.
+
+  MODULE 15 — DECIDE: Organ Expiry Checker (Background Process)
+  ──────────────────────────────────────────────────
+  A continuous hourly scan of the organ pool. Any kidney whose time since
+  harvest exceeds 36 hours is removed from the pool and disposed as expired.
+  This enforces the perishability constraint and models real-world organ waste.
+
+  MODULE 16 — DISPOSE: Successful Transplant
+  ──────────────────────────────────────────────────
+  Removes the kidney and patient entities from the system after a successful
+  transplant. Records statistics including cold ischemia time at transplant,
+  organ quality score, patient wait time, HLA match score, and total system
+  time.
+
+  MODULE 17 — DISPOSE: Organ Expired
+  ──────────────────────────────────────────────────
+  Removes kidney entities that exceeded the cold ischemia window. Records
+  the cold ischemia time at expiry for waste analysis.
+
+  MODULE 18 — DISPOSE: Crossmatch Failed
+  ──────────────────────────────────────────────────
+  Removes kidney entities that had a positive (incompatible) physical
+  crossmatch result, preventing an unsafe transplant.
+
+  MODULE 19 — DISPOSE: Graft Rejection
+  ──────────────────────────────────────────────────
+  Removes the kidney entity after a failed transplant surgery. The matched
+  patient is re-activated and returned to the waitlist.
+
+  MODULE 20 — DISPOSE: Patient Died / Transferred
+  ──────────────────────────────────────────────────
+  Removes patient entities who died while waiting or who were transferred
+  to another transplant center.
+
+
+4. RESOURCES
+================================================================================
+
+The model uses four shared resources with defined capacities. Entities must
+seize these resources in Process modules and release them after the associated
+delay completes. If all units of a resource are busy, arriving entities queue:
+
+  ┌───────────────────────┬──────────┬────────────────────────────────────────┐
+  │ Resource              │ Capacity │ Used By                                │
+  ├───────────────────────┼──────────┼────────────────────────────────────────┤
+  │ Operating Rooms       │    4     │ Surgery Process (Seize-Delay-Release)  │
+  │ Surgical Teams        │    5     │ Surgery Process (Seize-Delay-Release)  │
+  │ Transport Vehicles    │    3     │ Transport Process (Seize-Delay-Release)│
+  │ Crossmatch Labs       │    2     │ Crossmatch Process (Seize-Delay-Rel.) │
+  └───────────────────────┴──────────┴────────────────────────────────────────┘
+
+  Note: The Surgery Process requires BOTH an Operating Room AND a Surgical
+  Team simultaneously. The entity will wait until both are available before
+  proceeding.
+
+
+5. FLOW OF ENTITIES
+================================================================================
+
+The entity flow is organized into three parallel paths that interact through
+the matching system:
+
+
+  PATH A — Deceased Donor Kidney Flow:
+  ─────────────────────────────────────
+  Create (Kidney) → Assign (Blood Type, HLA, Zone)
+       → Decide (Match Found?)
+            ├── YES → Process (Crossmatch Lab: Seize-Delay-Release)
+            │          → Decide (Crossmatch Pass?)
+            │               ├── YES → Process (Transport: Seize-Delay-Release)
+            │               │          → Decide (Still Viable?)
+            │               │               ├── YES → Process (Surgery Prep: Delay)
+            │               │               │          → Decide (Still Viable?)
+            │               │               │              ├── YES → Process (Surgery: Seize OR+Team, Delay, Release)
+            │               │               │              │          → Decide (Graft Success?)
+            │               │               │              │               ├── YES → Dispose (Successful Transplant)
+            │               │               │              │               └── NO  → Dispose (Graft Rejection)
+            │               │               │              │                         Patient → back to Waitlist
+            │               │               │              └── NO  → Dispose (Expired)
+            │               │               │                        Patient → back to Waitlist
+            │               │               └── NO  → Dispose (Expired)
+            │               │                        Patient → back to Waitlist
+            │               └── NO  → Dispose (Crossmatch Failed)
+            │
+            └── NO  → Hold (Organ Pool — wait for patient)
+                       → Hourly Check: Decide (Expired?)
+                            ├── YES → Dispose (Organ Expired)
+                            └── NO  → Continue waiting / re-check for new patients
+
+
+  PATH B — Patient Flow:
+  ─────────────────────────────────────
+  Create (Patient) → Assign (Blood Type, HLA, Urgency, Age, PRA)
+       → Queue (Waitlist — Priority Queue)
+       → Hourly Check: Decide (Attrition?)
+            ├── Death     → Dispose (Died on Waitlist)
+            ├── Transfer  → Dispose (Transferred Out)
+            └── Survives  → Continue waiting for organ match
+       → [When matched by Path A] → Proceeds through Path A's process chain
+
+
+  PATH C — Living Donor Flow:
+  ─────────────────────────────────────
+  Create (Living Kidney + Recipient) → Assign (Guaranteed Compatible)
+       → Process (Crossmatch Lab: Seize-Delay-Release)
+       → Process (Transport: Seize-Delay-Release)
+       → Process (Surgery: Seize OR+Team, Delay, Release)
+       → Decide (Graft Success?)
+            ├── YES → Dispose (Successful Transplant)
+            └── NO  → Dispose (Graft Rejection)
+
+  Living donors bypass the matching queue because they arrive with a
+  pre-identified compatible recipient.
+
+
+6. LOGICAL STRUCTURE
+================================================================================
+
+The simulation's logical structure follows these key design principles:
+
+  a) TWO-WAY MATCHING TRIGGER
+     The matching logic is triggered in two directions:
+       • When a new kidney arrives → search the patient waitlist
+       • When a new patient arrives → search the organ pool
+     This prevents situations where a compatible kidney and patient both
+     sit idle without being matched.
+
+  b) PERISHABILITY ENFORCEMENT
+     The cold ischemia clock runs continuously from the moment of organ
+     harvest. Viability is checked at three critical decision points:
+       1. After transport (before surgery prep)
+       2. After surgery prep (before entering the OR)
+       3. Hourly in the organ pool (for unmatched kidneys)
+     If any check fails, the organ is immediately disposed.
+
+  c) QUALITY DECAY MODEL
+     Organ quality degrades exponentially: Q(t) = e^(-0.05·t), where t is
+     hours since harvest. This quality score directly affects the transplant
+     success probability, creating a meaningful trade-off between waiting for
+     a better match versus transplanting quickly before quality degrades.
+
+  d) PRIORITY-BASED ALLOCATION
+     The matching algorithm uses a composite score to allocate organs fairly:
+       Score = (Urgency Weight × 10) + (Wait Days × 0.5) + (HLA Matches × 2)
+     This means critically ill patients and those who have waited longest
+     receive priority, but a strong HLA match can elevate a lower-priority
+     patient.
+
+  e) WARM-UP PERIOD
+     The first 30 simulated days (720 hours) serve as a warm-up period.
+     All statistics collected during the warm-up are discarded. This ensures
+     the system reaches a representative steady state before data collection
+     begins, avoiding initialization bias.
+
+  f) MULTIPLE REPLICATIONS WITH DIFFERENT SEEDS
+     The model runs multiple independent replications (default: 10), each
+     with a different random number seed. This enables the calculation of
+     confidence intervals on output metrics, providing statistical rigor
+     equivalent to Arena's built-in replication analysis.
+
+
+7. STATISTICS COLLECTED
+================================================================================
+
+The model collects three types of statistics, mirroring Arena's statistical
+framework:
+
+  TALLY (Observation-Based) Statistics:
+    • Organ Cold Ischemia Time (hours) — time from harvest to transplant
+    • Organ Quality at Transplant — quality score at surgery completion
+    • Patient Wait Time (hours and days) — time from waitlist entry to match
+    • Surgery Duration (hours)
+    • Transport Time (hours)
+    • Crossmatch Testing Time (hours)
+    • Organ Total Time in System (hours)
+    • HLA Match Score (0–6) — antigen matches in successful transplants
+    • Patient Priority Score at Match
+
+  TIME-PERSISTENT (Time-Weighted) Statistics:
+    • Waitlist Length — number of active patients over time
+    • Organ Pool Size — number of available organs over time
+    • Operating Room Utilization (0–1)
+    • Surgical Team Utilization (0–1)
+    • Transport Vehicle Utilization (0–1)
+    • Crossmatch Lab Utilization (0–1)
+
+  COUNTER Statistics:
+    • Total Kidneys Arrived
+    • Total Patients Arrived
+    • Successful Transplants
+    • Failed Transplants (Graft Rejection)
+    • Organs Expired (Cold Ischemia Exceeded)
+    • Organs with No Compatible Match
+    • Patients Died on Waitlist
+    • Patients Transferred Out
+    • Living Donor Transplants
+
+  DERIVED Metrics:
+    • Organ Utilization Rate = Successful Transplants / Total Kidneys × 100%
+    • Organ Waste Rate = Organs Expired / Total Kidneys × 100%
+    • No-Match Rate = No Compatible Match / Total Kidneys × 100%
+
+
+8. INPUT DISTRIBUTIONS SUMMARY
+================================================================================
+
+  ┌──────────────────────────────┬──────────────────────────────────────────┐
+  │ Input                        │ Distribution                             │
+  ├──────────────────────────────┼──────────────────────────────────────────┤
+  │ Kidney inter-arrival time    │ Exponential(mean = 8 hrs)                │
+  │ Patient inter-arrival time   │ Exponential(mean = 4 hrs)                │
+  │ Living donor inter-arrival   │ Exponential(mean = 48 hrs)               │
+  │ Crossmatch testing time      │ Triangular(1.0, 2.0, 4.0) hrs           │
+  │ Transport time (Local)       │ Triangular(0.5, 1.0, 2.0) hrs           │
+  │ Transport time (Regional)    │ Triangular(1.5, 3.0, 5.0) hrs           │
+  │ Transport time (National)    │ Triangular(3.0, 5.0, 8.0) hrs           │
+  │ Surgery prep time            │ Triangular(0.5, 1.0, 2.0) hrs           │
+  │ Surgery time                 │ Triangular(2.0, 3.5, 6.0) hrs           │
+  │ Blood type                   │ Discrete(O:44%, A:42%, B:10%, AB:4%)    │
+  │ HLA antigens (each of 6)    │ Discrete Uniform(1, 20)                  │
+  │ Urgency level                │ Discrete(Crit:10%,Hi:25%,Med:40%,Lo:25%)│
+  │ Patient age                  │ Uniform(18, 75)                          │
+  │ PRA score                    │ Uniform(0, 100)                          │
+  │ Transport zone               │ Discrete(Local:40%,Regional:35%,Nat:25%)│
+  │ Organ quality decay          │ Q(t) = e^(-0.05·t)                      │
+  │ Transplant success prob.     │ 0.95 + 0.005·HLA - 0.01·CIT, ∈[0.7,1.0]│
+  │ Crossmatch failure prob.     │ 0.05 + PRA/500                          │
+  │ Patient death rate           │ 0.0001 per hour                         │
+  │ Patient transfer rate        │ 0.00005 per hour                        │
+  └──────────────────────────────┴──────────────────────────────────────────┘
+
+
+9. SIMULATION CONTROL PARAMETERS
+================================================================================
+
+  • Simulation Duration:   8,760 hours (365 days / 1 year)
+  • Warm-Up Period:        720 hours (30 days)
+  • Number of Replications: 10 (each with a unique random seed)
+  • Base Random Seed:      42 (seeds: 1042, 2042, 3042, ...)
+  • Report Interval:       Every 24 hours (daily snapshots)
+
+
+================================================================================
+                          END OF MODEL DESIGN
+================================================================================
